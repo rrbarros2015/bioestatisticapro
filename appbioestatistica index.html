@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bioestatística Pro - Plataforma de Estudos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #16a34a;
+            --primary-hover: #15803d;
+            --bg-color: #f0fdf4;
+            --card-bg: #ffffff;
+            --border-radius: 16px;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            transition: background-color 0.3s ease;
+        }
+
+        .theme-bg { background-color: var(--bg-color); }
+        .theme-primary-bg { background-color: var(--primary-color); }
+        .theme-primary-hover-bg:hover { background-color: var(--primary-hover); }
+        .theme-primary-text { color: var(--primary-color); }
+        .theme-primary-border { border-color: var(--primary-color); }
+        .theme-card { background-color: var(--card-bg); border-radius: var(--border-radius); }
+        .theme-rounded { border-radius: var(--border-radius); }
+
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .quiz-option { transition: all 0.2s; }
+        .quiz-option:hover:not(:disabled) { transform: translateX(5px); }
+        .quiz-correct { background-color: #dcfce7; border-color: #22c55e; color: #15803d; }
+        .quiz-wrong { background-color: #fee2e2; border-color: #ef4444; color: #b91c1c; }
+        .quiz-neutral { background-color: #f3f4f6; border-color: #9ca3af; color: #4b5563; }
+        .disabled-btn { opacity: 0.8; cursor: not-allowed; }
+
+        .flashcard-container {
+            perspective: 1000px;
+            height: 350px;
+        }
+        .flashcard {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+        .flashcard.is-flipped {
+            transform: rotateY(180deg);
+        }
+        .flashcard-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .flashcard-front {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+            color: white;
+            border-radius: var(--border-radius);
+        }
+        .flashcard-back {
+            background-color: white;
+            color: #1f2937;
+            transform: rotateY(180deg);
+            border: 2px solid var(--primary-color);
+            overflow-y: auto;
+            border-radius: var(--border-radius);
+        }
+
+        .category-box { transition: all 0.2s; }
+        .category-box.active-drop { background-color: #e2e8f0; border-color: var(--primary-color); transform: scale(1.02); }
+        .draggable-item { cursor: pointer; transition: all 0.2s; user-select: none; }
+        .draggable-item:active { transform: scale(0.95); }
+        .draggable-item.selected { background-color: #fef08a; border-color: #eab308; transform: scale(1.05); z-index: 10; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);}
+        .item-correct { animation: popCorrect 0.4s ease; background-color: #dcfce7; border-color: #22c55e; }
+        .item-wrong { animation: shakeWrong 0.4s ease; background-color: #fee2e2; border-color: #ef4444; }
+
+        @keyframes popCorrect {
+            0% { transform: scale(1); } 50% { transform: scale(1.1); background-color: #22c55e; color: white;} 100% { transform: scale(1); }
+        }
+        @keyframes shakeWrong {
+            0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); }
+        }
+
+        .r-console-line { font-family: 'Courier New', Courier, monospace; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-6 px-4 sm:px-6">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <header class="w-full max-w-4xl flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+        <div>
+            <h1 id="site-title" class="text-3xl font-extrabold tracking-tight theme-primary-text">Bioestatística Pro</h1>
+            <p id="site-subtitle" class="text-gray-600 font-medium">Sua plataforma completa de estudos</p>
+        </div>
+        <div class="flex gap-2">
+            <button id="btn-admin-panel" class="hidden bg-yellow-500 text-white hover:bg-yellow-600 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors flex items-center gap-2">
+                ⚙️ Painel do Criador
+            </button>
+            <button id="btn-home" class="hidden bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors flex items-center gap-2">
+                ← Voltar ao Menu
+            </button>
+        </div>
+    </header>
+
+    <div id="announcement-banner" class="w-full max-w-4xl bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 mb-6 rounded-r-lg hidden text-sm font-medium shadow-sm transition-all">
+        Bem-vindo ao Hub! Escolha um modo de estudo abaixo.
+    </div>
+
+    <div id="admin-sidebar" class="hidden fixed inset-0 z-40 flex justify-end bg-black bg-opacity-50">
+        <div class="w-full max-w-md bg-white h-full p-6 overflow-y-auto shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center border-b pb-4 mb-6">
+                <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">🛠️ Painel do Criador</h2>
+                <button id="close-admin-sidebar" class="text-gray-500 hover:text-gray-800 text-xl font-bold">&times;</button>
+            </div>
+
+            <div class="space-y-6 flex-grow">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Título do Site</label>
+                    <input type="text" id="cfg-title" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Subtítulo do Site</label>
+                    <input type="text" id="cfg-subtitle" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Banner de Aviso/Instruções</label>
+                    <textarea id="cfg-banner" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 h-20" placeholder="Insira avisos para os alunos aqui..."></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-3">Escolha de Cores (Preset)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="selectPreset('#16a34a', '#15803d', '#f0fdf4')" class="border p-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-gray-50 bg-green-50">
+                            <span class="w-3 h-3 bg-green-600 rounded-full inline-block"></span> Verde (Original)
+                        </button>
+                        <button onclick="selectPreset('#2563eb', '#1d4ed8', '#eff6ff')" class="border p-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-gray-50 bg-blue-50">
+                            <span class="w-3 h-3 bg-blue-600 rounded-full inline-block"></span> Azul Clínico
+                        </button>
+                        <button onclick="selectPreset('#7c3aed', '#6d28d9', '#f5f3ff')" class="border p-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-gray-50 bg-purple-50">
+                            <span class="w-3 h-3 bg-purple-600 rounded-full inline-block"></span> Roxo Academia
+                        </button>
+                        <button onclick="selectPreset('#ea580c', '#c2410c', '#fff7ed')" class="border p-2 rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-gray-50 bg-orange-50">
+                            <span class="w-3 h-3 bg-orange-600 rounded-full inline-block"></span> Laranja Outono
+                        </button>
+                    </div>
+                </div>
+                <div class="border-t pt-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Ajuste de Cor Personalizado</label>
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-600">Cor Principal (Botões e Título)</span>
+                            <input type="color" id="cfg-color-primary" class="h-8 w-14 rounded cursor-pointer">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-600">Cor Principal (Hover)</span>
+                            <input type="color" id="cfg-color-hover" class="h-8 w-14 rounded cursor-pointer">
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-600">Cor de Fundo da Tela</span>
+                            <input type="color" id="cfg-color-bg" class="h-8 w-14 rounded cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Formato de Bordas das Cartas/Telas</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectRadius('0px')" class="border p-2 rounded text-xs font-semibold hover:bg-gray-50">Quadrado</button>
+                        <button onclick="selectRadius('8px')" class="border p-2 rounded text-xs font-semibold hover:bg-gray-50">Suave</button>
+                        <button onclick="selectRadius('16px')" class="border p-2 rounded text-xs font-semibold hover:bg-gray-50">Arredondado</button>
+                    </div>
+                </div>
+                <div class="border-t pt-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="cfg-rstudio-unlocked" class="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
+                        <span class="text-sm font-bold text-gray-700">Desbloquear Módulo Prático RStudio</span>
+                    </label>
+                    <p class="text-xs text-gray-500 mt-1">Quando ativado, os estudantes poderão entrar e jogar no simulador interativo de código do RStudio.</p>
+                </div>
+                <div class="border-t pt-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Mudar Senha do Criador</label>
+                    <input type="password" id="cfg-password" class="w-full p-2 border rounded-lg text-sm" placeholder="Nova senha">
+                </div>
+            </div>
+
+            <div class="border-t pt-4 mt-6">
+                <button id="btn-save-settings" class="w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors shadow flex justify-center items-center gap-2">
+                    💾 Salvar Configurações
+                </button>
+                <button id="btn-logout" class="w-full py-2 bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 transition-colors mt-2 text-xs">
+                    Sair da Área de Criador
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="w-full max-w-4xl bg-white theme-rounded shadow-xl border border-gray-100 overflow-hidden min-h-[600px] relative fade-in" id="main-content">
+        
+        <!-- Hub Screen -->
+        <div id="hub-screen" class="p-6 sm:p-10">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">Escolha seu modo de estudo:</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                <div onclick="startApp('quiz')" class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 p-6 theme-rounded cursor-pointer hover:shadow-md transition-all hover:-translate-y-1">
+                    <div class="bg-green-500 w-12 h-12 rounded-full flex items-center justify-center text-white text-xl mb-4 shadow-sm">🕵️</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Detetive de Dados</h3>
+                    <p class="text-gray-600 text-sm">Simulador de questões de prova com explicações detalhadas de cada alternativa.</p>
+                </div>
+
+                <div onclick="startApp('flashcards')" class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 p-6 theme-rounded cursor-pointer hover:shadow-md transition-all hover:-translate-y-1">
+                    <div class="bg-blue-500 w-12 h-12 rounded-full flex items-center justify-center text-white text-xl mb-4 shadow-sm">🗂️</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Flashcards</h3>
+                    <p class="text-gray-600 text-sm">Memorização ativa de conceitos. Vire o card e classifique seu nível de dificuldade.</p>
+                </div>
+
+                <div onclick="startApp('categorization')" class="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 p-6 theme-rounded cursor-pointer hover:shadow-md transition-all hover:-translate-y-1">
+                    <div class="bg-yellow-500 w-12 h-12 rounded-full flex items-center justify-center text-white text-xl mb-4 shadow-sm">📦</div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Categorização</h3>
+                    <p class="text-gray-600 text-sm">Organize variáveis e conceitos nas caixas corretas. Essencial para fixar Níveis de Medida.</p>
+                </div>
+            </div>
+
+            <h2 class="text-xl font-bold text-gray-800 mb-4 border-t pt-6">Módulos de Fixação</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="flex items-center justify-between p-4 border border-green-500 bg-green-50 theme-rounded">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-green-200 text-green-800 font-bold px-3 py-1 rounded-full text-xs">Módulo 1</span>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Variáveis e Hipóteses</h4>
+                            <p class="text-xs text-gray-600">Tipos de variáveis, níveis de medida, experimental vs observacional.</p>
+                        </div>
+                    </div>
+                    <span class="text-green-600 font-bold text-xl">✓</span>
+                </div>
+
+                <div id="rstudio-module" class="flex items-center justify-between p-4 border border-gray-200 bg-gray-50 theme-rounded opacity-70 transition-all">
+                    <div class="flex items-center gap-3">
+                        <span id="rstudio-status" class="bg-gray-200 text-gray-600 font-bold px-3 py-1 rounded-full text-xs">Em Breve</span>
+                        <div>
+                            <h4 class="font-bold text-gray-800">Prática no RStudio</h4>
+                            <p id="rstudio-desc" class="text-xs text-gray-500">Sintaxe básica, criação de vetores e análise de dados no R.</p>
+                        </div>
+                    </div>
+                    <span id="rstudio-lock-icon" class="text-xl">🔒</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden flex-col h-full fade-in p-6 sm:p-10">
+            <div class="flex justify-between items-center mb-6">
+                <span id="quiz-counter" class="text-sm font-semibold text-green-700 bg-green-100 py-1 px-3 rounded-full border border-green-200"></span>
+                <span id="quiz-score" class="text-sm font-bold text-gray-600">Acertos: 0</span>
+            </div>
+            <h2 id="quiz-question" class="text-xl sm:text-2xl font-bold text-gray-800 mb-6">Pergunta</h2>
+            <div id="quiz-options" class="space-y-3 mb-6 flex-grow"></div>
+            <div id="quiz-feedback" class="hidden bg-gray-50 rounded-xl p-5 border border-gray-200 shadow-inner mt-4">
+                <h3 class="font-bold text-lg mb-4 text-gray-800 border-b pb-2">Análise das Alternativas:</h3>
+                <div id="quiz-explanations" class="space-y-3 text-sm"></div>
+                <div class="mt-6 flex justify-end">
+                    <button id="quiz-next-btn" class="theme-primary-bg theme-primary-hover-bg text-white font-bold py-2 px-6 theme-rounded transition-colors">
+                        Próxima Pergunta →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Flashcards Screen -->
+        <div id="flashcards-screen" class="hidden flex-col h-full fade-in p-6 sm:p-10 items-center justify-center">
+            <div class="w-full flex justify-between items-center mb-4 max-w-lg">
+                <span id="fc-counter" class="text-sm font-semibold text-blue-700 bg-blue-100 py-1 px-3 rounded-full border border-blue-200">Card 1/10</span>
+                <button onclick="shuffleFlashcards()" class="text-sm text-gray-500 hover:text-gray-800 underline">Embaralhar</button>
+            </div>
+
+            <div class="flashcard-container w-full max-w-lg mb-8" id="flashcard" onclick="flipCard()">
+                <div class="flashcard">
+                    <div class="flashcard-face flashcard-front">
+                        <p class="text-sm uppercase tracking-widest opacity-80 mb-4">Conceito</p>
+                        <h2 id="fc-front-text" class="text-3xl font-bold text-center px-4">Carregando...</h2>
+                        <p class="absolute bottom-4 text-xs opacity-70">(Toque para virar)</p>
+                    </div>
+                    <div class="flashcard-face flashcard-back p-6 flex flex-col justify-center">
+                        <p class="text-sm uppercase tracking-widest text-green-600 mb-2 font-bold">Definição / Explicação</p>
+                        <div id="fc-back-text" class="text-lg text-gray-700 text-center"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="fc-controls" class="hidden w-full max-w-lg grid grid-cols-3 gap-3 fade-in">
+                <button onclick="nextCard('hard')" class="bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 theme-rounded border border-red-300 transition-colors">Errei / Difícil</button>
+                <button onclick="nextCard('good')" class="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 font-bold py-3 theme-rounded border border-yellow-300 transition-colors">Lembrei</button>
+                <button onclick="nextCard('easy')" class="bg-green-100 hover:bg-green-200 text-green-700 font-bold py-3 theme-rounded border border-green-300 transition-colors">Fácil</button>
+            </div>
+            <p id="fc-tip" class="text-gray-400 text-sm mt-4 text-center">Classifique para avançar.</p>
+        </div>
+
+        <!-- Categorization Screen -->
+        <div id="categorization-screen" class="hidden flex-col h-full fade-in p-6 sm:p-10">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">Organize os Dados</h2>
+            <p class="text-gray-600 text-sm mb-6">Toque em um item abaixo e depois toque na caixa correta para classificá-lo.</p>
+            <div class="bg-gray-50 border border-gray-200 theme-rounded p-4 mb-8 min-h-[100px]">
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wide mb-3">Itens para classificar</h3>
+                <div id="cat-items-bank" class="flex flex-wrap gap-2"></div>
+            </div>
+            <div id="cat-boxes-container" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+            <div id="cat-completion" class="hidden text-center mt-8 p-6 bg-green-100 theme-rounded fade-in border border-green-300">
+                <h3 class="text-2xl font-bold text-green-800 mb-2">Parabéns! 🎉</h3>
+                <p class="text-green-700 mb-4">Você classificou todas as variáveis corretamente.</p>
+                <button onclick="initCategorization()" class="theme-primary-bg theme-primary-hover-bg text-white font-bold py-2 px-6 theme-rounded transition-colors">Jogar Novamente</button>
+            </div>
+        </div>
+
+        <!-- RStudio Screen -->
+        <div id="rstudio-screen" class="hidden flex-col h-full fade-in p-6 sm:p-10">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800 flex items-center gap-2">💻 RStudio Simulator</h2>
+                <span id="rstudio-progress" class="bg-blue-100 text-blue-800 px-3 py-1 text-xs font-bold rounded-full">Desafio 1/3</span>
+            </div>
+            <p class="text-gray-600 text-sm mb-4">Aprenda bioestatística na prática digitando ou escolhendo o código correto para rodar no console.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 h-[380px] mb-6">
+                <div class="bg-gray-50 border border-gray-200 theme-rounded p-4 flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs uppercase tracking-widest text-blue-600 font-bold">Instruções do Script</span>
+                        <h3 id="rstudio-instruction" class="text-base font-bold text-gray-800 mt-2 mb-4">Enunciado...</h3>
+                    </div>
+                    <div class="space-y-2" id="rstudio-options-container"></div>
+                </div>
+                <div class="bg-gray-900 text-green-400 theme-rounded p-4 font-mono text-xs overflow-y-auto flex flex-col justify-between shadow-inner">
+                    <div class="space-y-1 overflow-y-auto" id="rstudio-console-history">
+                        <div>R version 4.3.1 (2025-06-16) -- "Beagle"</div>
+                        <div>Platform: x86_64-pc-linux-gnu (64-bit)</div>
+                        <div>Digite ou selecione o código do script à esquerda...</div>
+                        <div>> </div>
+                    </div>
+                    <div class="border-t border-gray-800 pt-2 flex items-center mt-2">
+                        <span class="text-blue-400 font-bold select-none mr-2">></span>
+                        <input type="text" id="rstudio-console-input" class="bg-transparent text-green-400 focus:outline-none w-full" placeholder="Selecione um bloco de código acima..." readonly>
+                    </div>
+                </div>
+            </div>
+            <div id="rstudio-feedback" class="hidden flex justify-between items-center bg-gray-50 border p-4 theme-rounded">
+                <p id="rstudio-feedback-text" class="text-sm text-gray-700"></p>
+                <button id="rstudio-next-btn" class="bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-6 theme-rounded transition-colors">Avançar →</button>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="w-full max-w-4xl flex justify-between items-center mt-10 text-xs text-gray-500 border-t pt-4">
+        <p>© 2026 Bioestatística Pro. Desenvolvido para fomento do ensino acadêmico.</p>
+        <button id="btn-login-creator" class="text-gray-400 hover:text-gray-700 flex items-center gap-1 transition-colors">
+            🔑 Área do Criador
+        </button>
+    </footer>
+
+    <div id="creator-login-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">🔑 Acesso à Área de Edição</h3>
+            <p class="text-gray-500 text-xs mb-4">Insira sua senha de administrador para poder alterar o visual, cores e títulos do site em tempo real.</p>
+            <div class="mb-4">
+                <input type="password" id="creator-pass-input" class="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" placeholder="Senha padrão: bio123">
+            </div>
+            <div class="flex justify-end gap-2">
+                <button id="btn-cancel-login" class="px-4 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button id="btn-confirm-login" class="px-4 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 text-sm">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* =========================================================================
+           CONFIGURAÇÃO E TEMA
+           ========================================================================= */
+        let currentTheme = {
+            primaryColor: '#16a34a',
+            primaryHover: '#15803d',
+            bgColor: '#f0fdf4',
+            cardBg: '#ffffff',
+            borderRadius: '16px',
+            siteTitle: 'Bioestatística Pro',
+            siteSubtitle: 'Sua plataforma completa de estudos',
+            bannerText: 'Bem-vindo ao Hub! Escolha um modo de estudo abaixo e prepare-se para as provas.',
+            isRStudioUnlocked: false,
+            adminPasscode: 'bio123'
+        };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-xl shadow-lg border text-sm font-semibold transition-all duration-300 transform translate-x-10 opacity-0 ${
+                type === 'success' ? 'bg-green-100 border-green-300 text-green-800' : 
+                type === 'error' ? 'bg-red-100 border-red-300 text-red-800' : 
+                'bg-blue-100 border-blue-300 text-blue-800'
+            }`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-x-10', 'opacity-0'); }, 50);
+            setTimeout(() => {
+                toast.classList.add('translate-x-10', 'opacity-0');
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 3000);
+        }
+
+        function applyTheme(theme) {
+            document.title = theme.siteTitle;
+            document.getElementById('site-title').textContent = theme.siteTitle;
+            document.getElementById('site-subtitle').textContent = theme.siteSubtitle;
+            
+            const banner = document.getElementById('announcement-banner');
+            if (theme.bannerText) {
+                banner.textContent = theme.bannerText;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+
+            const root = document.documentElement;
+            root.style.setProperty('--primary-color', theme.primaryColor);
+            root.style.setProperty('--primary-hover', theme.primaryHover);
+            root.style.setProperty('--bg-color', theme.bgColor);
+            root.style.setProperty('--card-bg', theme.cardBg);
+            root.style.setProperty('--border-radius', theme.borderRadius);
+            
+            const rstudioModule = document.getElementById('rstudio-module');
+            const rstudioStatus = document.getElementById('rstudio-status');
+            const rstudioDesc = document.getElementById('rstudio-desc');
+            const rstudioLockIcon = document.getElementById('rstudio-lock-icon');
+
+            if (theme.isRStudioUnlocked) {
+                rstudioModule.classList.remove('opacity-70');
+                rstudioModule.classList.add('border-green-500', 'bg-green-50');
+                rstudioStatus.textContent = 'Módulo Ativo';
+                rstudioStatus.className = 'bg-green-200 text-green-800 font-bold px-3 py-1 rounded-full text-xs';
+                rstudioDesc.className = 'text-xs text-gray-700';
+                rstudioLockIcon.textContent = '🚀';
+                rstudioModule.style.cursor = 'pointer';
+                rstudioModule.onclick = () => startApp('rstudio');
+            } else {
+                rstudioModule.classList.add('opacity-70');
+                rstudioModule.classList.remove('border-green-500', 'bg-green-50');
+                rstudioStatus.textContent = 'Em Breve';
+                rstudioStatus.className = 'bg-gray-200 text-gray-600 font-bold px-3 py-1 rounded-full text-xs';
+                rstudioDesc.className = 'text-xs text-gray-500';
+                rstudioLockIcon.textContent = '🔒';
+                rstudioModule.style.cursor = 'default';
+                rstudioModule.onclick = null;
+            }
+        }
+
+        // Carrega configurações salvas do localStorage
+        (function loadSavedTheme() {
+            try {
+                const saved = localStorage.getItem('bio_theme_config');
+                if (saved) currentTheme = JSON.parse(saved);
+            } catch(e) {}
+            applyTheme(currentTheme);
+        })();
+
+        /* =========================================================================
+           PAINEL DO CRIADOR
+           ========================================================================= */
+        let isAdminLoggedIn = false;
+        let selectedRadiusValue = '16px';
+
+        const loginModal = document.getElementById('creator-login-modal');
+        const adminSidebar = document.getElementById('admin-sidebar');
+
+        document.getElementById('btn-login-creator').onclick = () => {
+            if (isAdminLoggedIn) {
+                adminSidebar.classList.remove('hidden');
+            } else {
+                loginModal.classList.remove('hidden');
+                document.getElementById('creator-pass-input').value = '';
+                document.getElementById('creator-pass-input').focus();
+            }
+        };
+
+        document.getElementById('btn-admin-panel').onclick = () => {
+            adminSidebar.classList.remove('hidden');
+        };
+
+        document.getElementById('btn-cancel-login').onclick = () => {
+            loginModal.classList.add('hidden');
+        };
+
+        document.getElementById('btn-confirm-login').onclick = () => {
+            const passInput = document.getElementById('creator-pass-input');
+            if (passInput.value === currentTheme.adminPasscode) {
+                isAdminLoggedIn = true;
+                loginModal.classList.add('hidden');
+                document.getElementById('btn-admin-panel').classList.remove('hidden');
+                adminSidebar.classList.remove('hidden');
+                showToast("Acesso ao Criador autorizado com sucesso!", "success");
+                loadAdminInputs();
+            } else {
+                showToast("Senha incorreta. Tente novamente.", "error");
+            }
+        };
+
+        function selectPreset(primary, hover, bg) {
+            document.getElementById('cfg-color-primary').value = primary;
+            document.getElementById('cfg-color-hover').value = hover;
+            document.getElementById('cfg-color-bg').value = bg;
+        }
+
+        function selectRadius(radius) {
+            selectedRadiusValue = radius;
+            showToast(`Formato de bordas alterado para: ${radius}`, 'info');
+        }
+
+        function loadAdminInputs() {
+            document.getElementById('cfg-title').value = currentTheme.siteTitle;
+            document.getElementById('cfg-subtitle').value = currentTheme.siteSubtitle;
+            document.getElementById('cfg-banner').value = currentTheme.bannerText || '';
+            document.getElementById('cfg-color-primary').value = currentTheme.primaryColor;
+            document.getElementById('cfg-color-hover').value = currentTheme.primaryHover;
+            document.getElementById('cfg-color-bg').value = currentTheme.bgColor;
+            document.getElementById('cfg-rstudio-unlocked').checked = currentTheme.isRStudioUnlocked;
+            document.getElementById('cfg-password').value = currentTheme.adminPasscode;
+            selectedRadiusValue = currentTheme.borderRadius;
+        }
+
+        document.getElementById('btn-save-settings').onclick = function() {
+            const updatedTheme = {
+                primaryColor: document.getElementById('cfg-color-primary').value,
+                primaryHover: document.getElementById('cfg-color-hover').value,
+                bgColor: document.getElementById('cfg-color-bg').value,
+                cardBg: '#ffffff',
+                borderRadius: selectedRadiusValue,
+                siteTitle: document.getElementById('cfg-title').value,
+                siteSubtitle: document.getElementById('cfg-subtitle').value,
+                bannerText: document.getElementById('cfg-banner').value,
+                isRStudioUnlocked: document.getElementById('cfg-rstudio-unlocked').checked,
+                adminPasscode: document.getElementById('cfg-password').value || currentTheme.adminPasscode
+            };
+            localStorage.setItem('bio_theme_config', JSON.stringify(updatedTheme));
+            currentTheme = updatedTheme;
+            applyTheme(currentTheme);
+            showToast("Configurações salvas com sucesso!", "success");
+            adminSidebar.classList.add('hidden');
+        };
+
+        document.getElementById('btn-logout').onclick = () => {
+            isAdminLoggedIn = false;
+            document.getElementById('btn-admin-panel').classList.add('hidden');
+            adminSidebar.classList.add('hidden');
+            showToast("Sessão do Criador finalizada.", "info");
+        };
+
+        document.getElementById('close-admin-sidebar').onclick = () => {
+            adminSidebar.classList.add('hidden');
+        };
+
+        /* =========================================================================
+           BANCO DE DADOS
+           ========================================================================= */
+        const quizData = [
+            {
+                question: "Um pesquisador quer saber se 'o consumo de açúcar aumenta a incidência de cáries'. Qual a principal diferença entre estruturar isso como Pergunta vs. Hipótese?",
+                options: [
+                    "A pergunta testa a amostra, a hipótese testa a população.",
+                    "A pergunta é uma afirmação que será testada estatisticamente; a hipótese é a conclusão final.",
+                    "A pergunta é investigativa ('Será que aumenta?'); a hipótese é uma afirmação testável ('O consumo aumenta as cáries').",
+                    "Na bioestatística moderna, perguntas e hipóteses têm a mesma função analítica."
+                ],
+                correct: 2,
+                explanations: [
+                    "Errado. Ambas se aplicam à amostra para induzir dados da população. O nível inferencial é análogo.",
+                    "Errado. Os conceitos estão invertidos. A hipótese é a afirmação testada por testes inferenciais.",
+                    "Correto! A Pergunta é investigativa e guia o estudo. A Hipótese de Pesquisa é uma proposição de resposta direta (afirmação) que será aceita ou rejeitada através de testes de significância estatística.",
+                    "Errado. Suas funções científicas e metodológicas são bastante distintas."
+                ]
+            },
+            {
+                question: "Em um estudo clínico, o pesquisador administra 3 doses de analgésico (10mg, 20mg, 30mg) e anota o 'Alívio da dor' do paciente. Qual a classificação da variável 'Dose do analgésico'?",
+                options: [
+                    "Variável Dependente (Desfecho)",
+                    "Variável Independente Atributiva",
+                    "Variável Independente Ativa",
+                    "Variável de Confusão"
+                ],
+                correct: 2,
+                explanations: [
+                    "Errado. O alívio da dor é o desfecho sofrido pelos pacientes, ou seja, a variável dependente.",
+                    "Errado. Atributiva é inerente ao paciente (idade, sexo). Como o cientista administrou, ela é manipulável.",
+                    "Correto! É Independente porque causa alteração de efeito. E é Ativa porque foi introduzida de forma controlada/manipulada no estudo experimental pelo próprio pesquisador.",
+                    "Errado. Variáveis de confusão são interferências externas inesperadas não manipuladas."
+                ]
+            },
+            {
+                question: "Com base no estudo acima, se a variável dependente 'Alívio da dor' apresentar as opções de resposta: Nenhuma dor, Dor Leve, Dor Moderada, Dor Intensa. Qual é o nível de medida?",
+                options: [
+                    "Qualitativa Nominal",
+                    "Qualitativa Ordinal",
+                    "Quantitativa Discreta",
+                    "Quantitativa Contínua"
+                ],
+                correct: 1,
+                explanations: [
+                    "Errado. Variável nominal é sem hierarquia (como tipo de sangue ou gênero).",
+                    "Correto! É Ordinal. Há uma ordem/hierarquia lógica progressiva visível, mas os intervalos matemáticos entre as distâncias qualitativas de dor são desiguais e abstratos.",
+                    "Errado. Escalas discretas consistem em contagem numérica exata por inteiros.",
+                    "Errado. Contínuas contam com decimais infinitos originados por medições de alta precisão."
+                ]
+            },
+            {
+                question: "A Hipótese Nula (H0) afirma que NÃO existe diferença entre a eficácia de dois cremes dentais. O que significa na prática se o estudo 'Rejeitar a Hipótese Nula'?",
+                options: [
+                    "Significa que o estudo falhou e deve ser refeito.",
+                    "Significa que os dois cremes dentais são exatamente iguais.",
+                    "Significa que os dados sugerem fortemente que HÁ uma diferença significativa entre os cremes dentais.",
+                    "Significa que a variável independente tornou-se uma variável dependente."
+                ],
+                correct: 2,
+                explanations: [
+                    "Errado. Rejeitar a hipótese nula geralmente prova o efeito desejado pelo pesquisador.",
+                    "Errado. Se fossem iguais, não conseguiríamos rejeitar o H0.",
+                    "Correto! H0 é a hipótese padrão de nulidade ou 'zero efeito'. Rejeitar o H0 significa demonstrar estatisticamente que a igualdade é improvável e suportar a Hipótese Alternativa (H1) de diferença.",
+                    "Errado. Não há transição estatística de classificação da variável baseada no p-valor."
+                ]
+            },
+            {
+                question: "A variável CPOD (Número de dentes Cariados, Perdidos ou Obturados) é classificada como nível de medida RAZÃO. Por que ela NÃO é apenas Intervalar?",
+                options: [
+                    "Porque ela utiliza números inteiros (contagem).",
+                    "Porque o número zero no CPOD indica a ausência real e absoluta de dentes afetados.",
+                    "Porque a distância entre 1 dente e 2 dentes é diferente da distância entre 3 e 4.",
+                    "Variáveis de Razão só podem ser aplicadas a estudos experimentais ativos."
+                ],
+                correct: 1,
+                explanations: [
+                    "Errado. Ser inteiro a classifica apenas como discreta, não determinando a escala de razão.",
+                    "Correto! O que difere a escala de Razão da Intervalar é a existência de um ZERO ABSOLUTO. No CPOD, o zero representa ausência total e irrefutável da condição cariada/perdida.",
+                    "Errado. Em ambas as escalas as distâncias intervalares entre os números adjacentes são rigorosamente idênticas.",
+                    "Errado. Variáveis de Razão são de alta precisão de dados, aplicando-se de forma geral a observações e experimentos."
+                ]
+            }
+        ];
+
+        const flashcardsData = [
+            { front: "Variável Independente Ativa", back: "Causa MANIPULADA pelo pesquisador.\n\nEx: Dar 50mg ou 100mg de um remédio. Caracteriza estudos Experimentais." },
+            { front: "Variável Independente Atributiva", back: "Causa que JÁ EXISTE no paciente.\n\nEx: Gênero, Idade, Histórico de Fumo. O pesquisador só observa. Caracteriza estudos Observacionais." },
+            { front: "Variável Dependente", back: "Também chamada de Desfecho ou Outcome.\n\nÉ o resultado medido. É o EFEITO causado pela variável independente." },
+            { front: "Nível de Medida: Nominal", back: "Categorias SEM ordem ou hierarquia.\n\nEx: Sexo (M/F), Tipo Sanguíneo (A, B, O), Doente (Sim/Não).\n\nEstatística possível: Apenas Moda e Frequência." },
+            { front: "Nível de Medida: Ordinal", back: "Categorias COM ordem lógica, mas sem distância matemática exata.\n\nEx: Escolaridade (Fundamental < Médio < Superior), Grau de Dor." },
+            { front: "Nível de Medida: Razão", back: "Números reais com ZERO ABSOLUTO (zero indica ausência total).\n\nEx: Peso (0kg = sem peso), Idade, Número de Filhos, Índice CPOD." }
+        ];
+
+        const categorizationData = {
+            categories: [
+                { id: "cat-nominal", title: "Qualitativa Nominal", color: "bg-blue-100 border-blue-400 text-blue-800" },
+                { id: "cat-ordinal", title: "Qualitativa Ordinal", color: "bg-purple-100 border-purple-400 text-purple-800" },
+                { id: "cat-razao", title: "Quantitativa (Razão)", color: "bg-green-100 border-green-400 text-green-800" }
+            ],
+            items: [
+                { id: "item1", text: "Gênero (Masc / Fem)", target: "cat-nominal" },
+                { id: "item2", text: "Pressão Arterial (mmHg)", target: "cat-razao" },
+                { id: "item3", text: "Estágio de Câncer (I a IV)", target: "cat-ordinal" },
+                { id: "item4", text: "Tipo de Tratamento (Creme A ou B)", target: "cat-nominal" },
+                { id: "item5", text: "Idade em Anos", target: "cat-razao" },
+                { id: "item6", text: "Satisfação (Baixo/Médio/Alto)", target: "cat-ordinal" },
+                { id: "item7", text: "Contagem de Dentes Cariados (CPOD)", target: "cat-razao" }
+            ]
+        };
+
+        const rstudioData = [
+            {
+                instruction: "Desafio 1: Colete os dados de CPOD dos pacientes de uma pesquisa clínica armazenando-os num vetor numérico de nome 'cpod'. Sabendo que as contagens dos pacientes foram: 3, 0, 1 e 5. Como você faria isso?",
+                options: [
+                    { code: "cpod <- c(3, 0, 1, 5)", desc: "Usa a função de concatenação c() para formar um vetor no R.", correct: true },
+                    { code: "cpod <- array(3, 0, 1, 5)", desc: "Gera um array de múltiplas dimensões, não sendo a abordagem direta.", correct: false },
+                    { code: "cpod = [3, 0, 1, 5]", desc: "Sintaxe clássica de listas do Python, não aceita no interpretador R nativo.", correct: false }
+                ],
+                consoleResponse: "> cpod <- c(3, 0, 1, 5)\n[1] Vetor de tamanho 4 criado com sucesso.\n> cpod\n[1] 3 0 1 5"
+            },
+            {
+                instruction: "Desafio 2: Obtenha as estatísticas resumidas (Média, Mediana, Mínimo e Máximo) do seu vetor de dados 'cpod' de uma só vez. Qual função usar?",
+                options: [
+                    { code: "describe(cpod)", desc: "Uma função de um pacote externo chamado 'psych', mas não é o comando base do R.", correct: false },
+                    { code: "summary(cpod)", desc: "Função base do R que gera medidas descritivas detalhadas simultaneamente.", correct: true },
+                    { code: "mean_all(cpod)", desc: "Função fictícia, não presente nas bibliotecas padrão.", correct: false }
+                ],
+                consoleResponse: "> summary(cpod)\n   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. \n   0.00    0.75    2.00    2.25    3.50    5.00"
+            },
+            {
+                instruction: "Desafio 3: Calcule a média clássica do vetor 'cpod' no RStudio usando a fórmula estatística correspondente.",
+                options: [
+                    { code: "average(cpod)", desc: "Sintaxe incorreta, o R base usa termos resumidos.", correct: false },
+                    { code: "mean(cpod)", desc: "Instrução nativa padrão do R para cálculo da média aritmética dos dados.", correct: true },
+                    { code: "med(cpod)", desc: "Função inválida ou inexistente.", correct: false }
+                ],
+                consoleResponse: "> mean(cpod)\n[1] 2.25"
+            }
+        ];
+
+        /* =========================================================================
+           LÓGICA DE NAVEGAÇÃO
+           ========================================================================= */
+        const screens = {
+            hub: document.getElementById('hub-screen'),
+            quiz: document.getElementById('quiz-screen'),
+            flashcards: document.getElementById('flashcards-screen'),
+            categorization: document.getElementById('categorization-screen'),
+            rstudio: document.getElementById('rstudio-screen')
+        };
+        const btnHome = document.getElementById('btn-home');
+
+        function startApp(appName) {
+            Object.values(screens).forEach(screen => {
+                screen.classList.add('hidden');
+                screen.classList.remove('flex');
+            });
+            btnHome.classList.remove('hidden');
+
+            if (appName === 'quiz') {
+                screens.quiz.classList.remove('hidden');
+                screens.quiz.classList.add('flex');
+                initQuiz();
+            } else if (appName === 'flashcards') {
+                screens.flashcards.classList.remove('hidden');
+                screens.flashcards.classList.add('flex');
+                initFlashcards();
+            } else if (appName === 'categorization') {
+                screens.categorization.classList.remove('hidden');
+                screens.categorization.classList.add('flex');
+                initCategorization();
+            } else if (appName === 'rstudio') {
+                screens.rstudio.classList.remove('hidden');
+                screens.rstudio.classList.add('flex');
+                initRStudio();
+            }
+        }
+
+        btnHome.onclick = () => {
+            Object.values(screens).forEach(screen => {
+                screen.classList.add('hidden');
+                screen.classList.remove('flex');
+            });
+            screens.hub.classList.remove('hidden');
+            btnHome.classList.add('hidden');
+        };
+
+        /* =========================================================================
+           JOGO 1: QUIZ
+           ========================================================================= */
+        let qCurrentIdx = 0;
+        let qScore = 0;
+        let qAnswered = false;
+
+        function initQuiz() {
+            qCurrentIdx = 0;
+            qScore = 0;
+            loadQuizQuestion();
+        }
+
+        function loadQuizQuestion() {
+            qAnswered = false;
+            const q = quizData[qCurrentIdx];
+            document.getElementById('quiz-counter').textContent = `Questão ${qCurrentIdx + 1} de ${quizData.length}`;
+            document.getElementById('quiz-score').textContent = `Acertos: ${qScore}`;
+            document.getElementById('quiz-question').textContent = q.question;
+            
+            const optionsContainer = document.getElementById('quiz-options');
+            optionsContainer.innerHTML = '';
+            document.getElementById('quiz-feedback').classList.add('hidden');
+
+            q.options.forEach((optText, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full text-left p-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium quiz-option theme-rounded';
+                btn.textContent = optText;
+                btn.onclick = () => selectQuizOption(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function selectQuizOption(selectedIndex, btnElement) {
+            if (qAnswered) return;
+            qAnswered = true;
+
+            const q = quizData[qCurrentIdx];
+            const isCorrect = selectedIndex === q.correct;
+            const allBtns = document.getElementById('quiz-options').children;
+
+            if (isCorrect) {
+                qScore++;
+                showToast("Resposta correta! Excelente!", "success");
+            } else {
+                showToast("Resposta incorreta. Analise as alternativas.", "error");
+            }
+            document.getElementById('quiz-score').textContent = `Acertos: ${qScore}`;
+
+            const explanationsContainer = document.getElementById('quiz-explanations');
+            explanationsContainer.innerHTML = '';
+
+            for (let i = 0; i < allBtns.length; i++) {
+                allBtns[i].classList.add('disabled-btn');
+                allBtns[i].disabled = true;
+
+                if (i === q.correct) {
+                    allBtns[i].classList.replace('border-gray-200', 'border-green-500');
+                    allBtns[i].classList.add('quiz-correct', 'font-bold');
+                } else if (i === selectedIndex && !isCorrect) {
+                    allBtns[i].classList.replace('border-gray-200', 'border-red-500');
+                    allBtns[i].classList.add('quiz-wrong');
+                } else {
+                    allBtns[i].classList.add('quiz-neutral');
+                }
+
+                const expDiv = document.createElement('div');
+                expDiv.className = 'p-3 rounded-lg border ' + (i === q.correct ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200');
+                const letter = String.fromCharCode(65 + i);
+                const tagCorreta = i === q.correct ? '<span class="text-green-600 font-bold ml-1">(Alternativa Correta)</span>' : '';
+                expDiv.innerHTML = `<p class="font-bold text-gray-700 mb-1">Alternativa ${letter} ${tagCorreta}:</p>
+                                    <p class="text-gray-600 leading-relaxed">${q.explanations[i]}</p>`;
+                explanationsContainer.appendChild(expDiv);
+            }
+
+            document.getElementById('quiz-feedback').classList.remove('hidden');
+            
+            const nextBtn = document.getElementById('quiz-next-btn');
+            nextBtn.textContent = (qCurrentIdx === quizData.length - 1) ? "Finalizar Quiz" : "Próxima Pergunta →";
+            nextBtn.onclick = () => {
+                if (qCurrentIdx < quizData.length - 1) {
+                    qCurrentIdx++;
+                    loadQuizQuestion();
+                } else {
+                    showToast(`Quiz concluído! Você acertou ${qScore}/${quizData.length} questões.`, "info");
+                    btnHome.click();
+                }
+            };
+        }
+
+        /* =========================================================================
+           JOGO 2: FLASHCARDS
+           ========================================================================= */
+        let fcCards = [];
+        let fcCurrentIdx = 0;
+
+        function initFlashcards() {
+            fcCards = [...flashcardsData].sort(() => Math.random() - 0.5);
+            fcCurrentIdx = 0;
+            loadFlashcard();
+        }
+
+        function shuffleFlashcards() {
+            initFlashcards();
+            showToast("Flashcards embaralhados!", "info");
+        }
+
+        function loadFlashcard() {
+            if (fcCurrentIdx >= fcCards.length) {
+                showToast("Todos os flashcards revisados!", "success");
+                btnHome.click();
+                return;
+            }
+
+            const domCard = document.getElementById('flashcard');
+            domCard.firstElementChild.classList.remove('is-flipped');
+            document.getElementById('fc-controls').classList.add('hidden');
+            document.getElementById('fc-tip').classList.remove('hidden');
+            
+            document.getElementById('fc-counter').textContent = `Card ${fcCurrentIdx + 1}/${fcCards.length}`;
+            document.getElementById('fc-front-text').textContent = fcCards[fcCurrentIdx].front;
+            document.getElementById('fc-back-text').innerHTML = fcCards[fcCurrentIdx].back.replace(/\n/g, '<br>');
+        }
+
+        function flipCard() {
+            const domCard = document.getElementById('flashcard');
+            const innerCard = domCard.firstElementChild;
+            if (!innerCard.classList.contains('is-flipped')) {
+                innerCard.classList.add('is-flipped');
+                setTimeout(() => {
+                    const controls = document.getElementById('fc-controls');
+                    controls.classList.remove('hidden');
+                    controls.classList.add('flex');
+                    document.getElementById('fc-tip').classList.add('hidden');
+                }, 400);
+            }
+        }
+
+        function nextCard(difficulty) {
+            fcCurrentIdx++;
+            loadFlashcard();
+        }
+
+        /* =========================================================================
+           JOGO 3: CATEGORIZAÇÃO
+           ========================================================================= */
+        let catState = { placedCount: 0 };
+        let selectedItemForCat = null;
+
+        function initCategorization() {
+            catState.placedCount = 0;
+            selectedItemForCat = null;
+            document.getElementById('cat-completion').classList.add('hidden');
+            
+            const bank = document.getElementById('cat-items-bank');
+            const boxesContainer = document.getElementById('cat-boxes-container');
+            bank.innerHTML = '';
+            boxesContainer.innerHTML = '';
+
+            let shuffledItems = [...categorizationData.items].sort(() => Math.random() - 0.5);
+
+            categorizationData.categories.forEach(cat => {
+                const box = document.createElement('div');
+                box.className = `category-box rounded-xl border-2 border-dashed p-4 min-h-[150px] flex flex-col ${cat.color}`;
+                box.dataset.catId = cat.id;
+                box.innerHTML = `<h4 class="font-bold text-center mb-3 border-b border-gray-300 pb-2">${cat.title}</h4>
+                                 <div class="box-content flex flex-col gap-2 flex-grow"></div>`;
+                box.onclick = () => handleBoxClick(box);
+                boxesContainer.appendChild(box);
+            });
+
+            shuffledItems.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'draggable-item bg-white border-2 border-gray-300 px-4 py-2 rounded-lg text-sm font-semibold text-gray-700 shadow-sm';
+                el.textContent = item.text;
+                el.dataset.target = item.target;
+                el.id = item.id;
+                el.onclick = (e) => handleItemSelect(e, el);
+                bank.appendChild(el);
+            });
+        }
+
+        function handleItemSelect(e, itemEl) {
+            e.stopPropagation();
+            if (selectedItemForCat) {
+                selectedItemForCat.classList.remove('selected');
+            }
+            if (selectedItemForCat === itemEl) {
+                selectedItemForCat = null;
+                return;
+            }
+            selectedItemForCat = itemEl;
+            itemEl.classList.add('selected');
+        }
+
+        function handleBoxClick(boxEl) {
+            if (!selectedItemForCat) return;
+
+            const targetCat = selectedItemForCat.dataset.target;
+            const clickedCat = boxEl.dataset.catId;
+
+            if (targetCat === clickedCat) {
+                selectedItemForCat.classList.remove('selected', 'border-gray-300');
+                selectedItemForCat.classList.add('item-correct');
+                selectedItemForCat.onclick = null;
+                boxEl.querySelector('.box-content').appendChild(selectedItemForCat);
+                selectedItemForCat = null;
+                catState.placedCount++;
+                showToast("Muito bem! Classificação correta.", "success");
+
+                if (catState.placedCount === categorizationData.items.length) {
+                    document.getElementById('cat-completion').classList.remove('hidden');
+                }
+            } else {
+                selectedItemForCat.classList.add('item-wrong');
+                showToast("Não é bem aí! Analise a escala de medida.", "error");
+                const wrongItem = selectedItemForCat;
+                setTimeout(() => { wrongItem.classList.remove('item-wrong'); }, 500);
+            }
+        }
+
+        /* =========================================================================
+           JOGO 4: SIMULADOR RSTUDIO
+           ========================================================================= */
+        let rCurrentIdx = 0;
+
+        function initRStudio() {
+            rCurrentIdx = 0;
+            resetConsole();
+            loadRStudioChallenge();
+        }
+
+        function resetConsole() {
+            document.getElementById('rstudio-console-history').innerHTML = 
+                `<div>R version 4.3.1 (2025-06-16) -- "Beagle"</div>
+                 <div>Platform: x86_64-pc-linux-gnu (64-bit)</div>
+                 <div>Selecione o bloco de código no script à esquerda...</div>
+                 <div>> </div>`;
+            document.getElementById('rstudio-console-input').value = '';
+            document.getElementById('rstudio-feedback').classList.add('hidden');
+        }
+
+        function loadRStudioChallenge() {
+            const rData = rstudioData[rCurrentIdx];
+            document.getElementById('rstudio-progress').textContent = `Desafio ${rCurrentIdx + 1}/${rstudioData.length}`;
+            document.getElementById('rstudio-instruction').textContent = rData.instruction;
+            document.getElementById('rstudio-feedback').classList.add('hidden');
+            document.getElementById('rstudio-console-input').value = '';
+
+            const optionsContainer = document.getElementById('rstudio-options-container');
+            optionsContainer.innerHTML = '';
+
+            rData.options.forEach(opt => {
+                const optBtn = document.createElement('button');
+                optBtn.className = "w-full text-left p-3 border rounded-lg bg-white hover:bg-gray-100 font-mono text-sm transition-all";
+                optBtn.innerHTML = `<span class="text-blue-600 font-bold">${opt.code}</span><br><span class="text-xs text-gray-500 font-sans">${opt.desc}</span>`;
+                optBtn.onclick = () => selectRStudioOption(opt, optBtn);
+                optionsContainer.appendChild(optBtn);
+            });
+        }
+
+        function selectRStudioOption(opt, btnEl) {
+            document.getElementById('rstudio-console-input').value = opt.code;
+
+            const feedbackBox = document.getElementById('rstudio-feedback');
+            const feedbackText = document.getElementById('rstudio-feedback-text');
+            const nextBtn = document.getElementById('rstudio-next-btn');
+
+            feedbackBox.classList.remove('hidden');
+
+            if (opt.correct) {
+                feedbackText.innerHTML = `🎉 <span class="text-green-600 font-bold">Código Correto!</span> Clique no botão para compilar o código no console do RStudio.`;
+                showToast("Excelente escolha de código!", "success");
+                nextBtn.onclick = () => runCodeInConsole(opt);
+            } else {
+                feedbackText.innerHTML = `❌ <span class="text-red-600 font-bold">Incorreto.</span> Tente selecionar outra estrutura de código.`;
+                showToast("Erro de compilação. Escolha outro comando.", "error");
+            }
+        }
+
+        function runCodeInConsole(opt) {
+            const history = document.getElementById('rstudio-console-history');
+            const currentLine = document.createElement('div');
+            currentLine.className = 'text-white mt-2 font-bold';
+            currentLine.textContent = `> ${opt.code}`;
+            history.appendChild(currentLine);
+
+            const responseLine = document.createElement('div');
+            responseLine.className = 'text-green-300 whitespace-pre-wrap mt-1';
+            responseLine.textContent = rstudioData[rCurrentIdx].consoleResponse;
+            history.appendChild(responseLine);
+            history.parentElement.scrollTop = history.parentElement.scrollHeight;
+
+            setTimeout(() => {
+                if (rCurrentIdx < rstudioData.length - 1) {
+                    rCurrentIdx++;
+                    loadRStudioChallenge();
+                } else {
+                    showToast("Simulador finalizado com êxito! Parabéns por codificar em R!", "success");
+                    btnHome.click();
+                }
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
